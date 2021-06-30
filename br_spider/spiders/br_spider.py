@@ -33,15 +33,20 @@ class GamesSpider(scrapy.Spider):
         games = response.xpath("//*/table[@id='schedule']/tbody/*")  # select all games data in the table
         for game in games:
             # data is arranged on different levels, check HTML structure of table on website
-            lvl1 = game.xpath("*/text()").extract()  # contains time, scores and attendance
-            lvl2 = game.xpath("*/*/text()").extract()  # contains date and team names
+            date = game.xpath("*[@data-stat='date_game']/a/text()").extract()[0]
+            time = game.xpath("*[@data-stat='game_start_time']/text()").extract()[0]
+            h_team = game.xpath("*[@data-stat='home_team_name']/a/text()").extract()[0]
+            h_score = game.xpath("*[@data-stat='home_pts']/text()").extract()[0]
+            a_team = game.xpath("*[@data-stat='visitor_team_name']/a/text()").extract()[0]
+            a_score = game.xpath("*[@data-stat='visitor_pts']/text()").extract()[0]
+            attendance = games[0].xpath("*[@data-stat='attendance']/text()").extract()[0]
 
-            yield {'date': extract_date(lvl2[0]),
-                   'time': extract_time(lvl1[0]),
-                   'day': extract_date(lvl2[0], save_format="%A"),  # %A means weekday
-                   'home_team': lvl2[2],
-                   'home_score': int(lvl1[2]),
-                   'away_team': lvl2[1],
-                   'away_score': int(lvl1[1]),
-                   'attendance': int(lvl1[-1].replace(",", '')),
+            yield {'date': extract_date(date),
+                   'time': extract_time(time),
+                   'day': extract_date(date, save_format="%A"),  # %A means weekday
+                   'home_team': h_team,
+                   'home_score': int(h_score),
+                   'away_team': a_team,
+                   'away_score': int(a_score),
+                   'attendance': int(attendance.replace(",", '')),
                    }
