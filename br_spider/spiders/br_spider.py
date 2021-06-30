@@ -3,12 +3,15 @@
 import scrapy
 import datetime as dt
 
-class GamesSpider(scrapy.Spider):
-    season = '2019'
-    name = "br_spider"
-    custom_settings = {'FEED_FORMAT': 'csv', 'FEED_URI': f'season_{season}_data.csv'}
-    start_urls = [f'https://www.basketball-reference.com/leagues/NBA_{season}_games.html']
+class BR_Data_Spider(scrapy.Spider):
+    name = "basketball-reference"
+    year = dt.date.today().strftime("%Y")  # get current year for standart season
+    custom_settings = {'FEED_FORMAT': 'csv', 'FEED_URI': f'game_data.csv'}
     
+    def __init__(self, season=year, *args, **kwargs):
+        super(BR_Data_Spider, self).__init__(*args, **kwargs)  # pass all arguments to standart class
+        self.start_urls = [f'https://www.basketball-reference.com/leagues/NBA_{season}_games.html']
+        
     def parse(self, response):
         """Parsing page links for this season."""
         season_pages = response.xpath("//div[@class='filter']/*/a")  # selects all anchors for months of the season
