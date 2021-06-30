@@ -40,6 +40,10 @@ class GamesSpider(scrapy.Spider):
             a_team = game.xpath("*[@data-stat='visitor_team_name']/a/text()").extract()[0]
             a_score = game.xpath("*[@data-stat='visitor_pts']/text()").extract()[0]
             attendance = games[0].xpath("*[@data-stat='attendance']/text()").extract()[0]
+            overtime = game.xpath("*[@data-stat='overtimes']/text()").extract()
+            overtime = overtime[0] if len(overtime) > 0 else None
+            notes = game.xpath("*[@data-stat='game_remarks']/text()").extract()
+            notes = notes[0] if len(notes) > 0 else None
 
             yield {'date': extract_date(date),
                    'time': extract_time(time),
@@ -49,4 +53,6 @@ class GamesSpider(scrapy.Spider):
                    'away_team': a_team,
                    'away_score': int(a_score),
                    'attendance': int(attendance.replace(",", '')),
+                   'overtime': overtime,
+                   'remarks': notes,
                    }
