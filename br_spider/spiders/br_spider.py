@@ -17,27 +17,20 @@ class BR_Data_Spider(scrapy.Spider):
         season_pages = response.xpath("//div[@class='filter']/*/a")  # selects all anchors for months of the season
         yield from response.follow_all(season_pages, callback=self.parse_game_data)  # generate requests for all pages automatically    
     
-    # TODO: extend this to also extract additional game data...
-    def parse_game_data(self, response):
-        """Parsing game data from a single page."""
-        
-        def extract_date(raw_date, read_format="%a, %b %d, %Y", save_format="%Y-%m-%d"):
-            """Extract date in nicer format. Check python datetime docs for formating options."""
+    def _extract_datetime(raw_date, read_format="%a, %b %d, %Y", save_format="%Y-%m-%d"):
+        """Extract date or time in nicer format. Check python datetime docs for formating options."""
             date = dt.datetime.strptime(raw_date, read_format)
             return date.strftime(save_format)
             
-        def extract_time(raw_time, save_format="%H:%M:%S"):
-            """Convert time to military time. Check python datetime docs for formating options."""
-            splt = raw_time.split(':')
-            padd = splt[0].zfill(2)+':'+splt[1]+'m'  # make hours zero padded
-            time = dt.datetime.strptime(padd, "%I:%M%p")            
-            return time.strftime(save_format)
-            
+    def parse_game_data(self, response):
+        """Parsing game data from a single page."""
         games = response.xpath("//*/table[@id='schedule']/tbody/*")  # select all games data in the table
         for game in games:
             # data is arranged on different levels, check HTML structure of table on website
             date = game.xpath("*[@data-stat='date_game']/a/text()").extract()[0]
-            time = game.xpath("*[@data-stat='game_start_time']/text()").extract()[0]
+            time_raw = game.xpath("*[@data-stat='game_start_time']/text()").extract()[0]
+            splt = time_raw.split(':')
+            time = splt[0].zfill(2)+':'+splt[1]+'m'  # adding full am/pm note
             h_team = game.xpath("*[@data-stat='home_team_name']/a/text()").extract()[0]
             h_score = game.xpath("*[@data-stat='home_pts']/text()").extract()[0]
             a_team = game.xpath("*[@data-stat='visitor_team_name']/a/text()").extract()[0]
@@ -48,9 +41,10 @@ class BR_Data_Spider(scrapy.Spider):
             notes = game.xpath("*[@data-stat='game_remarks']/text()").extract()
             notes = notes[0] if len(notes) > 0 else None
 
-            yield {'date': extract_date(date),
-                   'time': extract_time(time),
-                   'day': extract_date(date, save_format="%A"),  # %A means weekday
+            # scrape basic game information from page
+            yield {'date': self._extract_datetime(date),
+                   'time': self._extract_datetime(time, read_format="%I:%M%p", save_format="%H:%M:%S"),
+                   'day': self._extract_datetime(date, save_format="%A"),  # %A means weekday
                    'home_team': h_team,
                    'home_score': int(h_score),
                    'away_team': a_team,
@@ -59,3 +53,7 @@ class BR_Data_Spider(scrapy.Spider):
                    'overtime': overtime,
                    'remarks': notes,
                    }
+            
+            # yield request for additional detailed game data
+            game_details = game.xpath("*/a[text()='Box Score']")
+            yield response.follow(game_details, callback=self.parse_game_details)
