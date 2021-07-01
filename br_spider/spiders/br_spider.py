@@ -28,20 +28,18 @@ class BR_Data_Spider(scrapy.Spider):
         for game in games:
             # TODO: use get() instead of extract(), which returns single string instead of list
             # data is arranged on different levels, check HTML structure of table on website
-            date = game.xpath("*[@data-stat='date_game']/a/text()").extract()[0]
-            time_raw = game.xpath("*[@data-stat='game_start_time']/text()").extract()[0]
+            date = game.xpath("*[@data-stat='date_game']/a/text()").get()
+            time_raw = game.xpath("*[@data-stat='game_start_time']/text()").get()
             splt = time_raw.split(':')
             time = splt[0].zfill(2)+':'+splt[1]+'m'  # adding full am/pm note and padding zeros
             date_time = ' '.join([date, time])
-            h_team = game.xpath("*[@data-stat='home_team_name']/a/text()").extract()[0]
-            h_score = game.xpath("*[@data-stat='home_pts']/text()").extract()[0]
-            a_team = game.xpath("*[@data-stat='visitor_team_name']/a/text()").extract()[0]
-            a_score = game.xpath("*[@data-stat='visitor_pts']/text()").extract()[0]
-            attendance = games[0].xpath("*[@data-stat='attendance']/text()").extract()[0]
-            overtime = game.xpath("*[@data-stat='overtimes']/text()").extract()
-            overtime = overtime[0] if len(overtime) > 0 else None
-            notes = game.xpath("*[@data-stat='game_remarks']/text()").extract()
-            notes = notes[0] if len(notes) > 0 else None
+            h_team = game.xpath("*[@data-stat='home_team_name']/a/text()").get()
+            h_score = game.xpath("*[@data-stat='home_pts']/text()").get()
+            a_team = game.xpath("*[@data-stat='visitor_team_name']/a/text()").get()
+            a_score = game.xpath("*[@data-stat='visitor_pts']/text()").get()
+            attendance = games[0].xpath("*[@data-stat='attendance']/text()").get()
+            overtime = game.xpath("*[@data-stat='overtimes']/text()").get()
+            notes = game.xpath("*[@data-stat='game_remarks']/text()").get()
 
             # scrape basic game information from page
             yield {'date': extract_datetime(date_time),
