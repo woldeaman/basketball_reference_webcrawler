@@ -17,8 +17,8 @@ class BR_Data_Spider(scrapy.Spider):
         season_pages = response.xpath("//div[@class='filter']/*/a")  # selects all anchors for months of the season
         yield from response.follow_all(season_pages, callback=self.parse_game_data)  # generate requests for all pages automatically    
     
-    def _extract_datetime(raw_date, read_format="%a, %b %d, %Y", save_format="%Y-%m-%d"):
-        """Extract date or time in nicer format. Check python datetime docs for formating options."""
+    def _extract_datetime(raw_date, read_format="%a, %b %d, %Y %I:%M%p", save_format="%Y-%m-%dT%H:%M:%S"):
+        """Extract date or time in ISO-format. Check python datetime docs for formating options."""
             date = dt.datetime.strptime(raw_date, read_format)
             return date.strftime(save_format)
             
@@ -30,7 +30,8 @@ class BR_Data_Spider(scrapy.Spider):
             date = game.xpath("*[@data-stat='date_game']/a/text()").extract()[0]
             time_raw = game.xpath("*[@data-stat='game_start_time']/text()").extract()[0]
             splt = time_raw.split(':')
-            time = splt[0].zfill(2)+':'+splt[1]+'m'  # adding full am/pm note
+            time = splt[0].zfill(2)+':'+splt[1]+'m'  # adding full am/pm note and padding zeros
+            date_time = ' '.join([date, time])
             h_team = game.xpath("*[@data-stat='home_team_name']/a/text()").extract()[0]
             h_score = game.xpath("*[@data-stat='home_pts']/text()").extract()[0]
             a_team = game.xpath("*[@data-stat='visitor_team_name']/a/text()").extract()[0]
@@ -42,9 +43,8 @@ class BR_Data_Spider(scrapy.Spider):
             notes = notes[0] if len(notes) > 0 else None
 
             # scrape basic game information from page
-            yield {'date': self._extract_datetime(date),
-                   'time': self._extract_datetime(time, read_format="%I:%M%p", save_format="%H:%M:%S"),
-                   'day': self._extract_datetime(date, save_format="%A"),  # %A means weekday
+            yield {'date': self._extract_datetime(date_time),
+                   'day': self._extract_datetime(date_time, save_format="%A"),  # %A means weekday
                    'home_team': h_team,
                    'home_score': int(h_score),
                    'away_team': a_team,
