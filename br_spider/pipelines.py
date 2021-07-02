@@ -6,23 +6,32 @@
 
 # useful for handling different item types with a single interface
 from itemadapter import ItemAdapter
-from scrapy.contrib.exporter import CsvItemExporter
+from scrapy.exporters import CsvItemExporter
 
 
-class BR_Data_Spider_Pipeline:
-    def open_spider(self, spider):
-        self.games_file = open(f'season_{self.season}_games.csv', 'wb')
-        self.details_file = open(f'season_{self.season}_details.csv', 'wb')
+class BRDataSpiderPipeline:
+    """Storing basic game data and detailed game data in different files."""
+    SaveTypes = ['basic', 'detailed']
+
+    def open_spider(self, spider):  # save basic and detailed data in separate files
+        self.files = {id: open(f'season_{spider.season}_{id}.csv', 'wb') for id in self.SaveTypes}
+        self.exporters = {id: CsvItemExporter(self.files[id]) for id in self.SaveTypes}
+        for exp in self.exporters.values():  # start exporters up
+            exp.start_exporting()
 
     def close_spider(self, spider):
-        self.games_file.close()
-        self.details_file.close()
-        # TODO: add chronological sorting for both files 
+        # TODO: add sorting step
+        for id in self.SaveTypes:
+            self.exporters[id].finish_exporting()
+            self.files[id].close()
+            
+    def _item_type(self, item):
+        return type(item).__name__.replace('GameData','').lower()  # BasicGameData -> basic
 
     def process_item(self, item, spider):
-        # TODO
-        if 'MP' in item.keys():
-            # write to first csv file
-        else:
-            # write to other csv file
+        # TODO: drop player data if they did not play
+        item_id = self._item_type(item)
+        assert item_id in self.SaveTypes  # make sure item_id is valid
+        self.exporters[item_id].export_item(item)  # assign file according to item type
+        # TODO: make export of nested "stats" dict work...
         return item

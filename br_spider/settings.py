@@ -11,7 +11,9 @@ BOT_NAME = 'br_spider'
 
 SPIDER_MODULES = ['br_spider.spiders']
 NEWSPIDER_MODULE = 'br_spider.spiders'
-
+ITEM_PIPELINES = {
+    'br_spider.pipelines.BRDataSpiderPipeline': 500
+    }
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'br_spider (+http://www.yourdomain.com)'

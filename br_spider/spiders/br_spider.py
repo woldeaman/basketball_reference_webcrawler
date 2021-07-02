@@ -2,15 +2,15 @@
 # -*- coding: utf-8 -*-
 import scrapy
 import datetime as dt
+from ..items import BasicGameData, DetailedGameData
 
-class BR_Data_Spider(scrapy.Spider):
+class BRDataSpider(scrapy.Spider):
     name = "basketball-reference"
-    year = dt.date.today().strftime("%Y")  # get current year for standart season
-    custom_settings = {'FEED_FORMAT': 'csv', 'FEED_URI': f'game_data.csv'}
     
-    def __init__(self, season=year, *args, **kwargs):
-        super(BR_Data_Spider, self).__init__(*args, **kwargs)  # pass all arguments to standart class
-        self.start_urls = [f'https://www.basketball-reference.com/leagues/NBA_{season}_games.html']
+    def __init__(self, season=None, *args, **kwargs):
+        super(BRDataSpider, self).__init__(*args, **kwargs)  # pass all arguments to standart class
+        self.season = season if season is not None else dt.date.today().strftime("%Y")
+        self.start_urls = [f'https://www.basketball-reference.com/leagues/NBA_{self.season}_games.html']
         
     def parse(self, response):
         """Parsing page links for this season."""
@@ -41,16 +41,16 @@ class BR_Data_Spider(scrapy.Spider):
             notes = game.xpath("*[@data-stat='game_remarks']/text()").get()
 
             # scrape basic game information from page
-            yield {'date': self._extract_datetime(date_time),
-                   'weekday': self._extract_datetime(date_time, save_format="%A"),  # %A means weekday
-                   'home_team': h_team,
-                   'home_score': int(h_score),
-                   'away_team': a_team,
-                   'away_score': int(a_score),
-                   'attendance': int(attendance.replace(",", '')),
-                   'overtime': overtime,
-                   'remarks': notes,
-                   }
+            yield BasicGameData(date=self._extract_datetime(date_time),
+                                weekday=self._extract_datetime(date_time, save_format="%A"),  # %A means weekday
+                                home_team=h_team,
+                                home_score=int(h_score),
+                                away_team=a_team,
+                                away_score=int(a_score),
+                                attendance=int(attendance.replace(",", '')),
+                                overtime=overtime,
+                                remarks=notes,
+                                )
             
             # yield request for additional detailed game data
             game_details = game.xpath("*/a[text()='Box Score']")
@@ -58,12 +58,12 @@ class BR_Data_Spider(scrapy.Spider):
             
     def parse_game_details(self, response):
         """Parsing more detailed information for each game."""
-        date_time = response.xpath("//*/*[@class='scorebox_meta']/div/text()").extract()[0]  # reading date/time
+        date_time = response.xpath("//*/*[@class='scorebox_meta']/div/text()").get()  # reading date/time
         info_tables = response.xpath("//div[@class='table_container' and contains(@id, 'game-basic')]")  # gathering tables
         
         # cycle through home/away tables
         for table in info_tables:
-            team = table.xpath("*/caption/text()").extract()[0].split("(")[0].strip()  # extract team name
+            team = table.xpath("*/caption/text()").get().split("(")[0].strip()  # extract team name
             player_rows = table.xpath("*/*/tr[th[@scope='row']]")[:-1]  # last row is game total stats, skipping it
             # loop through all players, first five are starters
             for i, player in enumerate(player_rows):
@@ -72,12 +72,12 @@ class BR_Data_Spider(scrapy.Spider):
                 stats = {stat.attrib['data-stat'].upper(): stat.xpath("text()").get() for stat in player.xpath("td")}
                 
                 # scrape player specific game data 
-                yield {'date': self._extract_datetime(date_time, read_format="%I:%M %p, %B %d, %Y"),
-                       'team': team,
-                       'player': name,
-                       'role': role,
-                       **stats,
-                       }
+                yield DetailedGameData(date=self._extract_datetime(date_time, read_format="%I:%M %p, %B %d, %Y"),
+                                       team=team,
+                                       player=name,
+                                       role=role,
+                                       stats=stats,
+                                       )
                 
                 
             
