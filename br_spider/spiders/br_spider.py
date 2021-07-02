@@ -25,7 +25,7 @@ class BR_Data_Spider(scrapy.Spider):
     def parse_game_data(self, response):
         """Parsing game data from a single page."""
         games = response.xpath("//*/table[@id='schedule']/tbody/*")  # select all games data in the table
-        for game in games:
+        for game in games[:2]:
             # TODO: use get() instead of extract(), which returns single string instead of list
             # data is arranged on different levels, check HTML structure of table on website
             date = game.xpath("*[@data-stat='date_game']/a/text()").get()
@@ -54,31 +54,31 @@ class BR_Data_Spider(scrapy.Spider):
                    }
             
             # yield request for additional detailed game data
-    #         game_details = game.xpath("*/a[text()='Box Score']")
-    #         yield from response.follow_all(game_details, callback=self.parse_game_details)
+            game_details = game.xpath("*/a[text()='Box Score']")
+            yield from response.follow_all(game_details, callback=self.parse_game_details)
             
-    # def parse_game_details(self, response):
-    #     """Parsing more detailed information for each game."""
-    #     date_time = response.xpath("//*/*[@class='scorebox_meta']/div/text()").extract()[0]  # reading date/time
-    #     info_tables = response.xpath("//div[@class='table_container' and contains(@id, 'game-basic')]")  # gathering tables
+    def parse_game_details(self, response):
+        """Parsing more detailed information for each game."""
+        date_time = response.xpath("//*/*[@class='scorebox_meta']/div/text()").extract()[0]  # reading date/time
+        info_tables = response.xpath("//div[@class='table_container' and contains(@id, 'game-basic')]")  # gathering tables
         
-    #     # cycle through home/away tables
-    #     for table in info_tables:
-    #         team = table.xpath("*/caption/text()").extract()[0].split("(")[0].strip()  # extract team name
-    #         player_rows = table.xpath("*/*/tr[th[@scope='row']]")[:-1]  # last row is game total stats, skipping it
-    #         # loop through all players, first five are starters
-    #         for i, player in enumerate(player_rows):
-    #             role = 'Starter' if i < 5 else 'Reserve'
-    #             name = player.xpath("*/a/text()").get()
-    #             stats = {stat.attrib['data-stat'].upper(): stat.xpath("text()").get() for stat in player.xpath("td")}
+        # cycle through home/away tables
+        for table in info_tables:
+            team = table.xpath("*/caption/text()").extract()[0].split("(")[0].strip()  # extract team name
+            player_rows = table.xpath("*/*/tr[th[@scope='row']]")[:-1]  # last row is game total stats, skipping it
+            # loop through all players, first five are starters
+            for i, player in enumerate(player_rows):
+                role = 'Starter' if i < 5 else 'Reserve'
+                name = player.xpath("*/a/text()").get()
+                stats = {stat.attrib['data-stat'].upper(): stat.xpath("text()").get() for stat in player.xpath("td")}
                 
-    #             # scrape player specific game data 
-    #             yield {'date': extract_datetime(date_time, read_format="%I:%M %p, %B %d, %Y"),
-    #                    'team': team,
-    #                    'player': name,
-    #                    'role': role,
-    #                    **stats,
-    #                    }
+                # scrape player specific game data 
+                yield {'date': extract_datetime(date_time, read_format="%I:%M %p, %B %d, %Y"),
+                       'team': team,
+                       'player': name,
+                       'role': role,
+                       **stats,
+                       }
                 
                 
             
