@@ -25,7 +25,7 @@ class BRDataSpider(scrapy.Spider):
     def parse_game_data(self, response):
         """Parsing game data from a single page."""
         games = response.xpath("//*/table[@id='schedule']/tbody/*")  # select all games data in the table
-        for game in games[:2]:  # NOTE: debugging break
+        for game in games:
             # data is arranged on different levels, check HTML structure of table on website
             date = game.xpath("*[@data-stat='date_game']/a/text()").get()
             time_raw = game.xpath("*[@data-stat='game_start_time']/text()").get()
