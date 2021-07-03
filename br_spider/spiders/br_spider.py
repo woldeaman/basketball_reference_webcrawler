@@ -29,14 +29,19 @@ class BRDataSpider(scrapy.Spider):
             # data is arranged on different levels, check HTML structure of table on website
             date = game.xpath("*[@data-stat='date_game']/a/text()").get()
             time_raw = game.xpath("*[@data-stat='game_start_time']/text()").get()
-            splt = time_raw.split(':')
-            time = splt[0].zfill(2)+':'+splt[1]+'m'  # adding full am/pm note and padding zeros
+            if time_raw is not None:  # seasons before 2000 do not list game time
+                splt = time_raw.split(':')
+                time = splt[0].zfill(2)+':'+splt[1]+'m'  # adding full am/pm note and padding zeros
+            else:
+                time = '12:00am'
             date_time = ' '.join([date, time])
             h_team = game.xpath("*[@data-stat='home_team_name']/a/text()").get()
             h_score = game.xpath("*[@data-stat='home_pts']/text()").get()
             a_team = game.xpath("*[@data-stat='visitor_team_name']/a/text()").get()
             a_score = game.xpath("*[@data-stat='visitor_pts']/text()").get()
             attendance = games[0].xpath("*[@data-stat='attendance']/text()").get()
+            if attendance is not None:  # older seasons do not always list attendance
+                attendance = attendance.replace(",", '')
             overtime = game.xpath("*[@data-stat='overtimes']/text()").get()
             notes = game.xpath("*[@data-stat='game_remarks']/text()").get()
 
@@ -44,10 +49,10 @@ class BRDataSpider(scrapy.Spider):
             yield BasicGameData(date=self._extract_datetime(date_time),
                                 weekday=self._extract_datetime(date_time, save_format="%A"),  # %A means weekday
                                 home_team=h_team,
-                                home_score=int(h_score),
+                                home_score=h_score,
                                 away_team=a_team,
-                                away_score=int(a_score),
-                                attendance=int(attendance.replace(",", '')),
+                                away_score=a_score,
+                                attendance=attendance,
                                 overtime=overtime,
                                 remarks=notes,
                                 )
@@ -59,6 +64,10 @@ class BRDataSpider(scrapy.Spider):
     def parse_game_details(self, response):
         """Parsing more detailed information for each game."""
         date_time = response.xpath("//*/*[@class='scorebox_meta']/div/text()").get()  # reading date/time
+        if ":" in date_time:
+            date_time = self._extract_datetime(date_time, read_format="%I:%M %p, %B %d, %Y")
+        else:
+            date_time = self._extract_datetime('12:00 am, '+date_time, read_format="%I:%M %p, %B %d, %Y")
         info_tables = response.xpath("//div[@class='table_container' and contains(@id, 'game-basic')]")  # gathering tables
         
         # cycle through home/away tables
@@ -67,12 +76,15 @@ class BRDataSpider(scrapy.Spider):
             player_rows = table.xpath("*/*/tr[th[@scope='row']]")[:-1]  # last row is game total stats, skipping it
             # loop through all players, first five are starters
             for i, player in enumerate(player_rows):
-                role = 'Starter' if i < 5 else 'Reserve'
+                if 'Starters' in table.xpath("*/*/tr/th/text()").extract():
+                    role = 'Starter' if i < 5 else 'Reserve'
+                else:
+                    role = None
                 name = player.xpath("*/a/text()").get()
                 stats = {stat.attrib['data-stat'].upper(): stat.xpath("text()").get() for stat in player.xpath("td")}
                 
                 # scrape player specific game data 
-                yield DetailedGameData(date=self._extract_datetime(date_time, read_format="%I:%M %p, %B %d, %Y"),
+                yield DetailedGameData(date=date_time,
                                        team=team,
                                        player=name,
                                        role=role,

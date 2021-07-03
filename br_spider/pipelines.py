@@ -48,7 +48,8 @@ class BRDataSpiderPipeline:
             save_dat = None  # drop row if player did not play
         else:  # convert minutes played to float
             min = save_dat['MP']
-            save_dat['MP'] = float(min.split(':')[0])+float(min.split(':')[0])/60
+            if min is not None:
+                save_dat['MP'] = float(min.split(':')[0])+float(min.split(':')[0])/60
 
         return save_dat
 
